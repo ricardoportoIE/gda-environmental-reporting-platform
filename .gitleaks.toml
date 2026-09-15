@@ -1,0 +1,11 @@
+title = "GDA clean-history scan"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Ignore generated local tools and build outputs"
+paths = [
+  '''(?i)(^|[/\\])(\.git|\.tools|\.venv|node_modules|dist|media)([/\\]|$)''',
+  '''(?i)^\.env$'''
+]
