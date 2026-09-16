@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ShieldCheck, UploadCloud } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { api } from '../../api'
+import { submittedReport } from '../../anonymous-access'
 import { PageHeading } from '../../shared/Layout'
 import {
   StatusBadge,
@@ -12,12 +13,11 @@ import {
   nextStatus,
   statusLabels,
 } from '../../shared/report-ui'
-import type { Report, Status, User } from '../../types'
+import type { Status, User } from '../../types'
 
 export function ReportDetail({ user }: { user: User | null }) {
   const { id } = useParams()
-  const location = useLocation()
-  const initial = location.state as { report?: Report; token?: string } | null
+  const [initial] = useState(() => submittedReport(id))
   const [token, setToken] = useState(initial?.token || '')
   const [tokenInput, setTokenInput] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -33,6 +33,11 @@ export function ReportDetail({ user }: { user: User | null }) {
     initialData: initial?.report,
   })
   const report = query.data
+  const nearby = useQuery({
+    queryKey: ['nearby', report?.id, report?.latitude, report?.longitude],
+    queryFn: () => api.nearby(report!.latitude!, report!.longitude!, 10, report!.id),
+    enabled: isStaff(user?.role) && report?.latitude != null && report?.longitude != null,
+  })
   const update = async (status: Status) => {
     if (!id) return
     setPending(true)
@@ -195,6 +200,25 @@ export function ReportDetail({ user }: { user: User | null }) {
           </section>
         </div>
         <aside>
+          {isStaff(user?.role) && report.latitude != null && report.longitude != null && (
+            <section className="panel detail-panel">
+              <h2>Relatos próximos</h2>
+              <p className="muted">Consulta espacial em até 10 km deste ponto.</p>
+              {nearby.isLoading && <p className="muted">Procurando relatos...</p>}
+              {nearby.error && <p className="message message-error">{errorText(nearby.error)}</p>}
+              {nearby.data?.length === 0 && <p className="muted">Nenhum relato próximo.</p>}
+              <div className="nearby-list">
+                {nearby.data?.map((item) => (
+                  <Link key={item.id} to={`/denuncias/${item.id}`}>
+                    <strong>{item.title}</strong>
+                    <span>
+                      {item.distance_km.toFixed(2)} km · {item.category}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
           <section className="panel detail-panel">
             <h2>Andamento</h2>
             <div className="timeline">

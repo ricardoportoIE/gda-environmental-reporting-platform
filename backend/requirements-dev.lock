@@ -10,6 +10,8 @@ attrs==26.1.0
     #   referencing
 colorama==0.4.6
     # via pytest
+coverage==7.16.1
+    # via pytest-cov
 dj-database-url==3.1.2
     # via -r requirements.txt
 django==5.2.17
@@ -47,7 +49,9 @@ packaging==26.3
 pillow==12.3.0
     # via -r requirements.txt
 pluggy==1.6.0
-    # via pytest
+    # via
+    #   pytest
+    #   pytest-cov
 psycopg==3.3.5
     # via -r requirements.txt
 psycopg-binary==3.3.5
@@ -57,7 +61,10 @@ pygments==2.21.0
 pytest==9.1.1
     # via
     #   -r requirements-dev.txt
+    #   pytest-cov
     #   pytest-django
+pytest-cov==7.1.0
+    # via -r requirements-dev.txt
 pytest-django==4.14.0
     # via -r requirements-dev.txt
 pyyaml==6.0.3

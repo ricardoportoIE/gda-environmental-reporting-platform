@@ -7,12 +7,14 @@ from .views import (
     MunicipalityListView,
     ReportDetailView,
     ReportListCreateView,
+    ReportNearbyView,
     ReportTransitionView,
 )
 
 urlpatterns = [
     path("categories/", CategoryListView.as_view()),
     path("municipalities/", MunicipalityListView.as_view()),
+    path("reports/nearby/", ReportNearbyView.as_view()),
     path("reports/", ReportListCreateView.as_view()),
     path("reports/<uuid:pk>/", ReportDetailView.as_view()),
     path("reports/<uuid:pk>/transition/", ReportTransitionView.as_view()),

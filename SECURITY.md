@@ -7,3 +7,5 @@ The initial implementation uses cookie-based sessions, CSRF protection, explicit
 The legacy repositories remain an unresolved exposure: historical credentials and a database dump were reported in the supplied audit, and the dump's authenticity is unknown. No old credentials are used here. [Migration and incident status](docs/legacy-migration.md) lists the owner-led steps required before any rewrite.
 
 The local environment is for synthetic data only. Do not enter real CPF, contact details, evidence or sensitive locations into a portfolio demo. Production needs a documented retention/deletion policy, backups, private object storage, HTTPS and operational alerting. Redis-backed throttling limits abuse but does not replace bot controls or budget limits for future paid integrations.
+
+The interactive map uses OpenStreetMap tiles by default. Viewing or navigating the map sends the visible tile area and normal web request metadata to that external service. A production deployment should choose and configure a tile provider appropriate to its traffic and privacy requirements.

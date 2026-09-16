@@ -1,13 +1,16 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, CircleHelp, MapPin, ShieldCheck } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../api'
+import { rememberSubmittedReport } from '../../anonymous-access'
 import { PageHeading } from '../../shared/Layout'
+import { ReportMap, type Coordinates } from '../../shared/ReportMap'
 import { errorText } from '../../shared/report-ui'
 
 export function NewReport() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const categories = useQuery({ queryKey: ['categories'], queryFn: api.categories })
   const [municipalitySearch, setMunicipalitySearch] = useState('')
   const municipalities = useQuery({
@@ -21,7 +24,7 @@ export function NewReport() {
     municipality: '',
     address: '',
   })
-  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null)
+  const [coords, setCoords] = useState<Coordinates | null>(null)
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
   const locate = () =>
@@ -40,7 +43,9 @@ export function NewReport() {
         municipality: form.municipality || null,
         ...coords,
       })
-      navigate(`/denuncias/${report.id}`, { state: { report, token: report.access_token } })
+      await queryClient.invalidateQueries({ queryKey: ['reports'] })
+      rememberSubmittedReport(report)
+      navigate(`/denuncias/${report.id}`)
     } catch (caught) {
       setError(errorText(caught))
     } finally {
@@ -155,6 +160,19 @@ export function NewReport() {
                 ? `Localização adicionada (${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)})`
                 : 'Usar minha localização atual'}
             </button>
+            <div className="map-field">
+              <p>Ou selecione o ponto no mapa. A localização é opcional.</p>
+              <ReportMap position={coords} onSelect={setCoords} />
+              {coords && (
+                <button type="button" className="map-clear" onClick={() => setCoords(null)}>
+                  Remover localização
+                </button>
+              )}
+              <small>
+                O mapa usa blocos do OpenStreetMap. Ao navegar, a área mostrada é enviada ao
+                provedor de mapas.
+              </small>
+            </div>
           </div>
           {error && (
             <div role="alert" className="message message-error">

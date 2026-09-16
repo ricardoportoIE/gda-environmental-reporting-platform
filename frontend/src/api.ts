@@ -1,4 +1,4 @@
-import type { Category, Municipality, Paginated, Report, Status, User } from './types'
+import type { Category, Municipality, NearbyReport, Paginated, Report, Status, User } from './types'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || '/api'
 
@@ -67,6 +67,15 @@ export const api = {
   reports: (page = 1, status?: Status) =>
     request<Paginated<Report>>(`/reports/?page=${page}${status ? `&status=${status}` : ''}`),
   report: (id: string, token?: string) => request<Report>(`/reports/${id}/`, {}, token),
+  nearby: (latitude: number, longitude: number, radiusKm: number, excludeId?: string) => {
+    const params = new URLSearchParams({
+      latitude: String(latitude),
+      longitude: String(longitude),
+      radius_km: String(radiusKm),
+    })
+    if (excludeId) params.set('exclude_id', excludeId)
+    return request<NearbyReport[]>(`/reports/nearby/?${params}`)
+  },
   createReport: (data: Record<string, unknown>) =>
     request<Report>('/reports/', { method: 'POST', body: JSON.stringify(data) }),
   transition: (id: string, status: Status, reason: string) =>

@@ -2,6 +2,15 @@
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py"]
 
+[tool.coverage.run]
+branch = true
+source = ["accounts", "reports"]
+omit = ["*/migrations/*", "*/management/*/__init__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100

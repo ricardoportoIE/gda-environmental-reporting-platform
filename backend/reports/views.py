@@ -1,11 +1,15 @@
 import uuid
 import warnings
 
+from django.contrib.gis.db.models.functions import Distance
+from django.contrib.gis.geos import Point
+from django.contrib.gis.measure import D
 from django.db import transaction
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
+from drf_spectacular.utils import extend_schema
 from PIL import Image, UnidentifiedImageError
 from rest_framework import status
 from rest_framework.exceptions import NotAuthenticated, PermissionDenied, ValidationError
@@ -24,6 +28,8 @@ from .serializers import (
     AttachmentSerializer,
     CategorySerializer,
     MunicipalitySerializer,
+    NearbyQuerySerializer,
+    NearbyReportSerializer,
     ReportCreateSerializer,
     ReportSerializer,
     ReportUpdateSerializer,
@@ -53,6 +59,29 @@ class MunicipalityListView(APIView):
         if query:
             qs = qs.filter(name__icontains=query)
         return Response(MunicipalitySerializer(qs[:50], many=True).data)
+
+
+class ReportNearbyView(APIView):
+    permission_classes = [IsOperator]
+
+    @extend_schema(parameters=[NearbyQuerySerializer], responses=NearbyReportSerializer(many=True))
+    def get(self, request):
+        query = NearbyQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        values = query.validated_data
+        centre = Point(values["longitude"], values["latitude"], srid=4326)
+        nearby = (
+            Report.objects.filter(
+                location__isnull=False,
+                location__distance_lte=(centre, D(km=values["radius_km"])),
+            )
+            .select_related("category")
+            .annotate(distance=Distance("location", centre))
+            .order_by("distance", "id")
+        )
+        if excluded := values.get("exclude_id"):
+            nearby = nearby.exclude(pk=excluded)
+        return Response(NearbyReportSerializer(nearby[:50], many=True).data)
 
 
 @method_decorator(csrf_protect, name="dispatch")

@@ -52,6 +52,15 @@ export interface Report {
   transitions: Transition[]
   access_token?: string
 }
+export interface NearbyReport {
+  id: string
+  title: string
+  status: Status
+  category: string
+  latitude: number
+  longitude: number
+  distance_km: number
+}
 export interface Paginated<T> {
   count: number
   next: string | null

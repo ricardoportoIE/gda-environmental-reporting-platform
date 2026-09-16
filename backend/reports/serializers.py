@@ -1,3 +1,5 @@
+import math
+
 from django.contrib.gis.geos import Point
 from rest_framework import serializers
 
@@ -116,3 +118,35 @@ class ReportSerializer(serializers.ModelSerializer):
 
     def get_longitude(self, obj):
         return obj.location.x if obj.location else None
+
+
+class NearbyQuerySerializer(serializers.Serializer):
+    latitude = serializers.FloatField(min_value=-90, max_value=90)
+    longitude = serializers.FloatField(min_value=-180, max_value=180)
+    radius_km = serializers.FloatField(min_value=0.1, max_value=50, default=5)
+    exclude_id = serializers.UUIDField(required=False)
+
+    def validate(self, attrs):
+        if any(not math.isfinite(attrs[key]) for key in ("latitude", "longitude", "radius_km")):
+            raise serializers.ValidationError("Coordinates and radius must be finite numbers.")
+        return attrs
+
+
+class NearbyReportSerializer(serializers.ModelSerializer):
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
+    distance_km = serializers.SerializerMethodField()
+    category = serializers.CharField(source="category.name")
+
+    class Meta:
+        model = Report
+        fields = ("id", "title", "status", "category", "latitude", "longitude", "distance_km")
+
+    def get_latitude(self, obj):
+        return obj.location.y
+
+    def get_longitude(self, obj):
+        return obj.location.x
+
+    def get_distance_km(self, obj):
+        return round(obj.distance.km, 2)
