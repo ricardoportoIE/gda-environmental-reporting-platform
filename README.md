@@ -1,91 +1,182 @@
 # GDA — Environmental Reporting Platform
 
-**A web platform for submitting, tracking and reviewing environmental reports.**
+[![CI](https://github.com/ricardoportoIE/gda-environmental-reporting-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/ricardoportoIE/gda-environmental-reporting-platform/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ricardoportoIE/gda-environmental-reporting-platform)](https://github.com/ricardoportoIE/gda-environmental-reporting-platform/releases)
+[![Licence: MIT](https://img.shields.io/badge/Licence-MIT-2ea44f.svg)](LICENSE)
 
-GDA (Gerenciador de Denúncias Ambientais) is a **modernisation of my university final-year project**. It began as a way to make environmental concerns easier to report and has been rebuilt as a full-stack application with a clear citizen journey and a dedicated workspace for the teams reviewing cases.
+**A full-stack platform for submitting, tracking and reviewing environmental reports.**
 
-This iteration keeps the academic project's core purpose and technology choices while updating the user experience, architecture, security and development workflow.
+GDA (_Gerenciador de Denúncias Ambientais_) is a modernisation of my final-year university project. The original academic concept has been rebuilt as a clean monorepo that demonstrates secure web engineering, geospatial data processing, automated quality gates and containerised delivery.
 
-**Django + DRF** · **React + TypeScript** · **PostgreSQL + PostGIS** · **Redis** · **Docker Compose** · **GitHub Actions**
+Residents can report environmental incidents and follow their progress, while authorised teams receive a dedicated workspace for assessment, evidence review and auditable status management.
 
-## How it works
+The product interface is currently in Brazilian Portuguese. The source code, documentation and engineering conventions are maintained in English.
 
-1. **Submit a report:** describe the issue, choose a category and optionally select a location on an interactive map.
-2. **Follow its progress:** signed-in citizens see their reports in a personal dashboard. Anonymous reporters receive a private access code to revisit their case.
-3. **Review the case:** operators can see reports, access authorised evidence and record status changes with a history of decisions.
-4. **Manage the platform:** administrators manage user roles and the catalogues used when creating reports.
+## Project at a glance
 
-Images and PDFs can be attached as evidence. Files remain private, and downloads are subject to the same access rules as their reports.
+| Area       | Implementation                                                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Product    | Public and authenticated reporting, private reference-code tracking, evidence uploads and staff case management                 |
+| Security   | Session authentication, CSRF protection, role-based access control, object-level authorisation and hardened production settings |
+| Geospatial | PostGIS-backed coordinates, interactive mapping and nearby-report queries                                                       |
+| Delivery   | Multi-stage containers, Docker Compose, health checks, GitHub Actions and versioned releases                                    |
+| Quality    | Django, API, React, accessibility and end-to-end tests with enforced coverage thresholds                                        |
 
-## Technology stack
+## Product capabilities
 
-| Layer | Technologies | What they do |
-| --- | --- | --- |
-| Frontend | React 19, TypeScript, Vite, React Router, TanStack Query, Leaflet | Forms, report dashboard, interactive map and API communication |
-| Backend | Python 3.12, Django 5.2, Django REST Framework | Business rules, authentication, permissions and REST endpoints |
-| Geospatial data | PostgreSQL, PostGIS, GeoDjango | Report storage and geographic point data |
-| Infrastructure | Docker Compose, Nginx, Gunicorn, Redis | Local services, frontend delivery, API serving and request throttling |
-| Quality | Pytest, Vitest, Playwright, axe-core, MyPy, Ruff, ESLint, Prettier, GitHub Actions | Unit, API, accessibility and E2E tests, coverage, typing and automated validation |
+| User                | Capabilities                                                                            |
+| ------------------- | --------------------------------------------------------------------------------------- |
+| Anonymous reporter  | Submit a report and receive a private reference code for later tracking                 |
+| Registered resident | Create reports, upload evidence and follow cases from a personal dashboard              |
+| Operator            | Review authorised cases, inspect nearby reports and apply controlled status transitions |
+| Administrator       | Manage users, roles and reporting catalogues through Django administration              |
+
+Evidence files are validated by type and size. Report history records status changes, timestamps and the responsible actor, providing an audit trail for operational review.
 
 ## Engineering highlights
 
-- **Role-based and report-level authorisation:** citizens, operators and administrators have different capabilities. Access to an individual report or attachment also depends on ownership or a valid anonymous access code.
-- **Protected sessions:** authentication uses `HttpOnly` cookies and CSRF protection for state-changing requests. The frontend does not store session tokens in `localStorage`.
-- **Auditable status workflow:** allowed transitions are checked and recorded with an actor, reason and timestamp inside a database transaction.
-- **Applied geospatial features:** optional coordinates are selected with Leaflet, stored in a PostGIS `PointField` and used in a role-protected radius query that orders nearby reports by distance.
-- **Reproducible local setup:** the frontend, API, spatial database and Redis run together through Docker Compose with pinned dependencies and health checks.
-- **Production-safe configuration:** development and production settings are separate; production fails fast when its secret or hosts are missing and enforces HTTPS security controls.
-- **Operational visibility:** liveness and dependency-aware readiness probes accompany structured JSON request logs and traceable `X-Request-ID` response headers.
-- **Efficient delivery:** route-level code splitting keeps mapping libraries out of the initial JavaScript bundle until a map-enabled page is opened.
+- **Defence in depth:** server-side permission classes and object-level checks protect report data independently of the user interface.
+- **Safe browser authentication:** Django sessions and CSRF tokens are used consistently by the typed frontend HTTP client.
+- **Controlled workflow:** explicit state transitions prevent invalid case updates and preserve an auditable history.
+- **Useful spatial data:** PostGIS supports coordinate storage, an interactive Leaflet map and radius-based nearby-report searches.
+- **Operational visibility:** structured JSON request logs, correlation IDs, liveness and dependency-aware readiness endpoints support diagnosis.
+- **Production-aware configuration:** environment-specific Django settings fail closed when required secrets or trusted origins are missing.
+- **Efficient frontend delivery:** route-level code splitting keeps the initial application bundle focused.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    Person[Citizen or reviewer] --> Web[React + TypeScript]
-    Web -->|REST, session and CSRF| Proxy[Nginx]
-    Proxy --> API[Django + DRF]
+    Browser[React + TypeScript] -->|Session + CSRF| Proxy[Nginx]
+    Proxy -->|/api| API[Django REST Framework]
+    Proxy -->|Static application| Browser
     API --> DB[(PostgreSQL + PostGIS)]
     API --> Cache[(Redis)]
-    API --> Files[(Private evidence)]
+    API --> Media[Validated evidence storage]
 ```
 
-The monorepository separates `frontend/` from `backend/`. Within the backend, `accounts/` handles identity and roles, while `reports/` handles reports, evidence and status transitions.
+The frontend and backend live in one repository and share a single validation and release workflow. Nginx serves the production frontend and proxies API, administration, static and media requests to Django.
+
+```text
+.
+├── backend/                 Django, DRF, domain logic and API tests
+├── frontend/                React, TypeScript, Vitest and Playwright
+├── docs/                    Deployment and validation guidance
+├── nginx/                   Reverse-proxy configuration
+├── .github/workflows/       Continuous integration and release automation
+└── docker-compose.yml       Local full-stack environment
+```
+
+## Technology stack
+
+| Layer          | Technologies                                                                          |
+| -------------- | ------------------------------------------------------------------------------------- |
+| Frontend       | React, TypeScript, Vite, React Router, TanStack Query, Leaflet, Lucide React          |
+| Backend        | Python, Django, Django REST Framework, drf-spectacular                                |
+| Data           | PostgreSQL, PostGIS, Redis                                                            |
+| Infrastructure | Docker Compose, Nginx, Gunicorn, GitHub Actions, GHCR                                 |
+| Quality        | Pytest, pytest-cov, MyPy, Vitest, Testing Library, Playwright, axe-core, Ruff, ESLint |
+
+## Quality and verification
+
+The current release has been verified with the following automated checks:
+
+| Suite               | Result                                                             |
+| ------------------- | ------------------------------------------------------------------ |
+| Backend             | 21 tests passing; 87.38% statement coverage                        |
+| Frontend            | 28 tests passing; 72.28% line coverage                             |
+| End-to-end          | 3 Playwright journeys passing, including a WCAG accessibility scan |
+| Contracts and types | OpenAPI schema generation, TypeScript and MyPy checks passing      |
+| Security            | Dependency audit and repository secret scan passing                |
+
+GitHub Actions repeats linting, type checks, tests, coverage enforcement, container builds, end-to-end journeys and security scans on every relevant change.
 
 ## Run locally
 
-With Docker and Docker Compose installed, create a `.env` file from [`.env.example`](.env.example), set a fresh `DJANGO_SECRET_KEY` and start the services:
+### Requirements
+
+- Docker Engine or Docker Desktop
+- Docker Compose v2
+
+### 1. Create the local environment file
+
+On macOS or Linux:
+
+```bash
+cp .env.example .env
+```
+
+On Windows PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
-# Replace DJANGO_SECRET_KEY with a random value in .env.
+```
+
+Replace the example secret and database values in `.env` before starting the application. Do not use production credentials locally or commit the file.
+
+### 2. Start the platform
+
+```bash
 docker compose up --build -d
 ```
 
-The interface is available at **http://localhost:8080**, readiness at **http://localhost:8080/ready/** and the interactive API documentation at **http://localhost:8080/api/docs/**. Create the first administrator account with:
+| Resource          | Address                           |
+| ----------------- | --------------------------------- |
+| Web application   | <http://localhost:8080>           |
+| API documentation | <http://localhost:8080/api/docs/> |
+| Liveness check    | <http://localhost:8080/health/>   |
+| Readiness check   | <http://localhost:8080/ready/>    |
 
-```powershell
+### 3. Create an administrator
+
+```bash
 docker compose exec backend python manage.py createsuperuser
 ```
 
-Optional, clearly labelled synthetic data can be added to a local database. The command is idempotent and supports a read-only preview:
+### 4. Add synthetic demonstration data
 
-```powershell
+Preview the operation first, then create the records:
+
+```bash
 docker compose exec backend python manage.py seed_demo_data --dry-run
 docker compose exec backend python manage.py seed_demo_data
 ```
 
-## Validation
+The seed command is idempotent and uses synthetic content intended only for local demonstration.
 
-The CI pipeline runs backend tests against PostGIS, frontend component tests with coverage thresholds, and Playwright E2E journeys against the complete Compose stack. Locally, the main checks are:
+## Run checks manually
 
-```powershell
-docker compose run --rm --user root backend sh -c "pip install -r requirements-dev.lock && mypy accounts reports config && pytest -q --cov=accounts --cov=reports --cov-branch"
+Backend checks run inside the project container:
+
+```bash
+docker compose run --rm --user root backend sh -c "pip install -r requirements-dev.lock && ruff check . && mypy accounts reports config && python manage.py spectacular --file /tmp/schema.yml --validate --fail-on-warn && pytest --cov=accounts --cov=reports --cov-branch --cov-report=term-missing --cov-fail-under=80"
+```
+
+Frontend checks run from the frontend directory:
+
+```bash
 cd frontend
+npm ci
+npm run lint
+npm run build
 npm run coverage
 npm run test:e2e
 ```
 
-Playwright also runs automated WCAG 2.1 A/AA checks with axe-core across the public journey. The OpenAPI contract is validated without warnings in CI, and frontend coverage cannot fall below 70% for statements, branches or lines.
+## Documentation
 
-GDA is a **portfolio MVP**. The local environment uses HTTP; a public deployment requires HTTPS, production storage and a suitable map tile provider. See the [deployment guide](docs/deployment.md) for the hardened settings and operational probes. The project is available under the [MIT Licence](LICENSE), and the [validation log](docs/validation.md) records the verified checks.
+- [Deployment guide](docs/DEPLOYMENT.md)
+- [Validation record](docs/VALIDATION.md)
+- [Contribution guide](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
+- [Release history](CHANGELOG.md)
+
+## Project status
+
+GDA is a portfolio-grade engineering case study and runnable MVP. The repository is suitable for local evaluation and continuous integration. A public production deployment still requires managed infrastructure, HTTPS, durable object storage, monitoring and environment-specific secrets, as described in the deployment guide.
+
+The current stable version is [v2.0.0](https://github.com/ricardoportoIE/gda-environmental-reporting-platform/releases/tag/v2.0.0).
+
+## Licence
+
+This project is available under the [MIT Licence](LICENSE).
