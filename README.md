@@ -25,7 +25,7 @@ Images and PDFs can be attached as evidence. Files remain private, and downloads
 | Backend | Python 3.12, Django 5.2, Django REST Framework | Business rules, authentication, permissions and REST endpoints |
 | Geospatial data | PostgreSQL, PostGIS, GeoDjango | Report storage and geographic point data |
 | Infrastructure | Docker Compose, Nginx, Gunicorn, Redis | Local services, frontend delivery, API serving and request throttling |
-| Quality | Pytest, pytest-cov, Vitest, Playwright, Ruff, ESLint, Prettier, GitHub Actions | Unit, API and E2E tests, coverage, static checks and automated validation |
+| Quality | Pytest, Vitest, Playwright, axe-core, MyPy, Ruff, ESLint, Prettier, GitHub Actions | Unit, API, accessibility and E2E tests, coverage, typing and automated validation |
 
 ## Engineering highlights
 
@@ -34,6 +34,9 @@ Images and PDFs can be attached as evidence. Files remain private, and downloads
 - **Auditable status workflow:** allowed transitions are checked and recorded with an actor, reason and timestamp inside a database transaction.
 - **Applied geospatial features:** optional coordinates are selected with Leaflet, stored in a PostGIS `PointField` and used in a role-protected radius query that orders nearby reports by distance.
 - **Reproducible local setup:** the frontend, API, spatial database and Redis run together through Docker Compose with pinned dependencies and health checks.
+- **Production-safe configuration:** development and production settings are separate; production fails fast when its secret or hosts are missing and enforces HTTPS security controls.
+- **Operational visibility:** liveness and dependency-aware readiness probes accompany structured JSON request logs and traceable `X-Request-ID` response headers.
+- **Efficient delivery:** route-level code splitting keeps mapping libraries out of the initial JavaScript bundle until a map-enabled page is opened.
 
 ## Architecture
 
@@ -59,7 +62,7 @@ Copy-Item .env.example .env
 docker compose up --build -d
 ```
 
-The interface is available at **http://localhost:8080** and the interactive API documentation at **http://localhost:8080/api/docs/**. Create the first administrator account with:
+The interface is available at **http://localhost:8080**, readiness at **http://localhost:8080/ready/** and the interactive API documentation at **http://localhost:8080/api/docs/**. Create the first administrator account with:
 
 ```powershell
 docker compose exec backend python manage.py createsuperuser
@@ -77,10 +80,12 @@ docker compose exec backend python manage.py seed_demo_data
 The CI pipeline runs backend tests against PostGIS, frontend component tests with coverage thresholds, and Playwright E2E journeys against the complete Compose stack. Locally, the main checks are:
 
 ```powershell
-docker compose run --rm backend pytest -q --cov=accounts --cov=reports --cov-branch
+docker compose run --rm --user root backend sh -c "pip install -r requirements-dev.lock && mypy accounts reports config && pytest -q --cov=accounts --cov=reports --cov-branch"
 cd frontend
 npm run coverage
 npm run test:e2e
 ```
 
-GDA is a **portfolio MVP**. The local environment uses HTTP; a public deployment requires HTTPS, production storage and a suitable map tile provider. The project is available under the [MIT Licence](LICENSE), and the [validation log](docs/validation.md) records the verified checks.
+Playwright also runs automated WCAG 2.1 A/AA checks with axe-core across the public journey. The OpenAPI contract is validated without warnings in CI, and frontend coverage cannot fall below 70% for statements, branches or lines.
+
+GDA is a **portfolio MVP**. The local environment uses HTTP; a public deployment requires HTTPS, production storage and a suitable map tile provider. See the [deployment guide](docs/deployment.md) for the hardened settings and operational probes. The project is available under the [MIT Licence](LICENSE), and the [validation log](docs/validation.md) records the verified checks.

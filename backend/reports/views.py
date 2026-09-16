@@ -9,7 +9,8 @@ from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from PIL import Image, UnidentifiedImageError
 from rest_framework import status
 from rest_framework.exceptions import NotAuthenticated, PermissionDenied, ValidationError
@@ -26,11 +27,14 @@ from .models import Attachment, Category, Municipality, Report, StatusTransition
 from .security import issue_anonymous_token, require_report_access
 from .serializers import (
     AttachmentSerializer,
+    AttachmentUploadSerializer,
     CategorySerializer,
     MunicipalitySerializer,
     NearbyQuerySerializer,
     NearbyReportSerializer,
+    ReportCreateResponseSerializer,
     ReportCreateSerializer,
+    ReportPageSerializer,
     ReportSerializer,
     ReportUpdateSerializer,
     TransitionSerializer,
@@ -42,6 +46,7 @@ from .throttles import ReportCreateThrottle
 class CategoryListView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(operation_id="categories_list", responses=CategorySerializer(many=True))
     def get(self, request):
         return Response(
             CategorySerializer(
@@ -53,6 +58,11 @@ class CategoryListView(APIView):
 class MunicipalityListView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        operation_id="municipalities_list",
+        parameters=[OpenApiParameter("q", str, description="Case-insensitive name search.")],
+        responses=MunicipalitySerializer(many=True),
+    )
     def get(self, request):
         query = request.query_params.get("q", "")[:100]
         qs = Municipality.objects.all()
@@ -64,7 +74,11 @@ class MunicipalityListView(APIView):
 class ReportNearbyView(APIView):
     permission_classes = [IsOperator]
 
-    @extend_schema(parameters=[NearbyQuerySerializer], responses=NearbyReportSerializer(many=True))
+    @extend_schema(
+        operation_id="reports_nearby",
+        parameters=[NearbyQuerySerializer],
+        responses=NearbyReportSerializer(many=True),
+    )
     def get(self, request):
         query = NearbyQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
@@ -95,6 +109,14 @@ class ReportListCreateView(APIView):
             throttles.append(ReportCreateThrottle())
         return throttles
 
+    @extend_schema(
+        operation_id="reports_list",
+        parameters=[
+            OpenApiParameter("page", int, description="Results page."),
+            OpenApiParameter("status", str, enum=Report.Status.values),
+        ],
+        responses=ReportPageSerializer,
+    )
     def get(self, request):
         if not request.user.is_authenticated:
             raise NotAuthenticated()
@@ -112,6 +134,11 @@ class ReportListCreateView(APIView):
         page = paginator.paginate_queryset(qs, request, view=self)
         return paginator.get_paginated_response(ReportSerializer(page, many=True).data)
 
+    @extend_schema(
+        operation_id="reports_create",
+        request=ReportCreateSerializer,
+        responses={201: ReportCreateResponseSerializer},
+    )
     def post(self, request):
         serializer = ReportCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -144,9 +171,15 @@ class ReportDetailView(APIView):
         require_report_access(request, report)
         return report
 
+    @extend_schema(operation_id="reports_retrieve", responses=ReportSerializer)
     def get(self, request, pk):
         return Response(ReportSerializer(self.get_object(request, pk)).data)
 
+    @extend_schema(
+        operation_id="reports_partial_update",
+        request=ReportUpdateSerializer,
+        responses=ReportSerializer,
+    )
     def patch(self, request, pk):
         report = self.get_object(request, pk)
         if report.status != Report.Status.ANALYSIS:
@@ -163,6 +196,11 @@ class ReportDetailView(APIView):
 class ReportTransitionView(APIView):
     permission_classes = [IsOperator]
 
+    @extend_schema(
+        operation_id="reports_transition",
+        request=TransitionSerializer,
+        responses=ReportSerializer,
+    )
     def post(self, request, pk):
         serializer = TransitionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -186,6 +224,11 @@ ALLOWED_SIGNATURES = {
 class AttachmentUploadView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        operation_id="reports_attachments_create",
+        request={"multipart/form-data": AttachmentUploadSerializer},
+        responses={201: AttachmentSerializer},
+    )
     def post(self, request, pk):
         upload = request.FILES.get("file")
         if upload is None:
@@ -227,6 +270,12 @@ class AttachmentUploadView(APIView):
 class AttachmentDownloadView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        operation_id="reports_attachments_download",
+        responses={
+            200: OpenApiResponse(response=OpenApiTypes.BINARY, description="Private evidence file.")
+        },
+    )
     def get(self, request, pk, attachment_id):
         attachment = get_object_or_404(
             Attachment.objects.select_related("report"), pk=attachment_id, report_id=pk

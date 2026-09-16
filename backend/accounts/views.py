@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate, login, logout
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -10,6 +11,7 @@ from .models import User
 from .permissions import IsGDAAdmin
 from .serializers import (
     AdminUserSerializer,
+    DetailSerializer,
     LoginSerializer,
     PublicUserSerializer,
     RegisterSerializer,
@@ -21,6 +23,7 @@ from .throttles import AuthThrottle
 class CSRFView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(operation_id="auth_csrf", responses=DetailSerializer)
     def get(self, request):
         return Response({"detail": "CSRF cookie set"})
 
@@ -30,6 +33,11 @@ class RegisterView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [AuthThrottle]
 
+    @extend_schema(
+        operation_id="auth_register",
+        request=RegisterSerializer,
+        responses={201: PublicUserSerializer},
+    )
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -43,6 +51,11 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [AuthThrottle]
 
+    @extend_schema(
+        operation_id="auth_login",
+        request=LoginSerializer,
+        responses=PublicUserSerializer,
+    )
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -61,6 +74,7 @@ class LoginView(APIView):
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(operation_id="auth_logout", request=None, responses={204: None})
     def post(self, request):
         logout(request)
         return Response(status=status.HTTP_204_NO_CONTENT)

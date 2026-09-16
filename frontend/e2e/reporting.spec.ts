@@ -1,8 +1,20 @@
 import { expect, test } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
 
 test.beforeEach(async ({ page }) => {
   // Headless tests exercise Leaflet interactions without downloading community-funded map tiles.
   await page.route('https://tile.openstreetmap.org/**', (route) => route.abort())
+})
+
+test('public journeys have no automatically detectable accessibility violations', async ({ page }) => {
+  for (const path of ['/', '/entrar', '/nova-denuncia']) {
+    await page.goto(path)
+    await expect(page.locator('main, section.hero, .auth-wrap').first()).toBeVisible()
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze()
+    expect(results.violations, `Accessibility violations on ${path}`).toEqual([])
+  }
 })
 
 test('an anonymous reporter selects a map point and revisits a private report', async ({

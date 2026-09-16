@@ -4,7 +4,7 @@ from rest_framework.exceptions import ValidationError
 
 from .models import Report, StatusTransition
 
-ALLOWED_TRANSITIONS = {
+ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     Report.Status.ANALYSIS: {Report.Status.QUEUED, Report.Status.REJECTED},
     Report.Status.QUEUED: {Report.Status.IN_PROGRESS, Report.Status.REJECTED},
     Report.Status.IN_PROGRESS: {Report.Status.COMPLETED, Report.Status.REJECTED},

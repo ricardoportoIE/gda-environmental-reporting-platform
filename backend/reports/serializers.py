@@ -1,6 +1,8 @@
 import math
 
 from django.contrib.gis.geos import Point
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from .models import Attachment, Category, Municipality, Report, StatusTransition
@@ -36,7 +38,7 @@ class ReportCreateSerializer(LocationFieldsMixin, serializers.ModelSerializer):
 
     class Meta:
         model = Report
-        fields = (
+        fields: tuple[str, ...] = (
             "title",
             "description",
             "category",
@@ -84,6 +86,10 @@ class AttachmentSerializer(serializers.ModelSerializer):
         fields = ("id", "original_name", "content_type", "size", "created_at")
 
 
+class AttachmentUploadSerializer(serializers.Serializer):
+    file = serializers.FileField(help_text="PNG, JPEG or PDF evidence, up to 5 MB.")
+
+
 class ReportSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     municipality = MunicipalitySerializer(read_only=True)
@@ -94,7 +100,7 @@ class ReportSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Report
-        fields = (
+        fields: tuple[str, ...] = (
             "id",
             "title",
             "description",
@@ -113,9 +119,11 @@ class ReportSerializer(serializers.ModelSerializer):
             "transitions",
         )
 
+    @extend_schema_field(OpenApiTypes.DOUBLE)
     def get_latitude(self, obj):
         return obj.location.y if obj.location else None
 
+    @extend_schema_field(OpenApiTypes.DOUBLE)
     def get_longitude(self, obj):
         return obj.location.x if obj.location else None
 
@@ -142,11 +150,30 @@ class NearbyReportSerializer(serializers.ModelSerializer):
         model = Report
         fields = ("id", "title", "status", "category", "latitude", "longitude", "distance_km")
 
+    @extend_schema_field(OpenApiTypes.DOUBLE)
     def get_latitude(self, obj):
         return obj.location.y
 
+    @extend_schema_field(OpenApiTypes.DOUBLE)
     def get_longitude(self, obj):
         return obj.location.x
 
+    @extend_schema_field(OpenApiTypes.DOUBLE)
     def get_distance_km(self, obj):
         return round(obj.distance.km, 2)
+
+
+class ReportCreateResponseSerializer(ReportSerializer):
+    access_token = serializers.CharField(
+        required=False, help_text="Returned once for anonymous reports."
+    )
+
+    class Meta(ReportSerializer.Meta):
+        fields = (*ReportSerializer.Meta.fields, "access_token")
+
+
+class ReportPageSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    next = serializers.URLField(allow_null=True)
+    previous = serializers.URLField(allow_null=True)
+    results = ReportSerializer(many=True)

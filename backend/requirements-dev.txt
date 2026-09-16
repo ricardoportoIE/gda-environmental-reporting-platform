@@ -3,3 +3,6 @@ pytest>=8,<10
 pytest-django>=4.11,<5
 pytest-cov>=7.1,<8
 ruff>=0.12,<1
+mypy>=1.18,<2
+django-stubs[compatible-mypy]>=5.2,<6
+djangorestframework-stubs[compatible-mypy]>=3.16,<4

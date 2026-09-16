@@ -40,6 +40,10 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, trim_whitespace=False)
 
 
+class DetailSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+
+
 class AdminUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User

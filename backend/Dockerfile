@@ -1,6 +1,6 @@
 FROM python:3.12-slim-trixie
 
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 DJANGO_SETTINGS_MODULE=config.settings.production
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgdal36 libgeos-c1t64 libproj25 \
